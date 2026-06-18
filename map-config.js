@@ -1,0 +1,16 @@
+// Ustawienia mapy + warstwa kafli
+const map = L.map("map", {
+  center: [52.23, 21.01],
+  zoom: 14,
+  rotate: true,
+  touchRotate: true,
+  shiftKeyRotate: true,
+  dragRotate: true,
+  rotateControl: false,
+  rotateCompassControl: { enabled: false, position: "bottomright" },
+});
+window.map = map;
+
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "&copy; OpenStreetMap",
+}).addTo(map);
