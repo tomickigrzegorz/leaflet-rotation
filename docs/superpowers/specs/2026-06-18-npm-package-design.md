@@ -178,6 +178,33 @@ podczas implementacji (np. czy `setBearing` zwraca `this`).
 Decyzja w planie implementacji (preferencja: demo → `dist/leaflet-rotate.umd.js`, usunięcie
 starego `leaflet-rotate-custom.js` po weryfikacji parytetu).
 
+## README.md
+
+Obecny README jest merytorycznie kompletny dla opcji/kontrolek/markerów/gestów —
+**zachowujemy te sekcje**. Aktualizacje pod paczkę:
+
+1. **Tytuł / nazwa** — `# @tomickigrzegorz/leaflet-rotate` (zamiast `leaflet-rotate-custom`).
+2. **Instalacja** — przepisać sekcję na dwa warianty:
+   - npm (git): `npm i github:tomickigrzegorz/leafelt-rotation`, potem
+     ```js
+     import "leaflet";
+     import "@tomickigrzegorz/leaflet-rotate";
+     import "@tomickigrzegorz/leaflet-rotate/css"; // tylko gdy używasz kontrolek
+     ```
+   - `<script>`/CDN (UMD): leaflet + `dist/leaflet-rotate.umd.min.js` (po Leaflecie),
+     opcjonalnie `dist/leaflet-rotate.css`.
+3. **API mapy** — DODAĆ brakujące metody heading-up do tabeli:
+   - `map.setHeading(deg, options?)` — tryb heading-up (mapa obraca się tak, by `deg`
+     był na górze; `bearing = -deg`), z wygładzaniem (rAF easing); `deg = null` → stop.
+     `options`: `ease` (domyślnie 0.2), `deadzone` (domyślnie 0.5°).
+   - `map.stopHeadingUp()` — wyłącza tryb heading-up (nie zeruje `bearing`).
+   - `map.getHeadingUp()` — czy tryb heading-up aktywny.
+4. **Motyw CSS** — nowa krótka sekcja: zmienne `--lrc-control-bg`, `--lrc-control-size`,
+   `--lrc-control-hover` i przykład nadpisania bez `!important`.
+5. **Przykład** — bez zmian (zostaje).
+
+Sygnatury heading-up potwierdzić z `heading.js` przy implementacji.
+
 ## Kryteria akceptacji
 
 1. `npm run build` generuje `dist/` z ESM, UMD, UMD.min, CSS, `index.d.ts` bez błędów.
@@ -189,6 +216,8 @@ starego `leaflet-rotate-custom.js` po weryfikacji parytetu).
 4. `npm i github:tomickigrzegorz/leafelt-rotation` w czystym projekcie udostępnia paczkę
    bez ręcznego budowania (dzięki commitowanemu `dist/` + `prepare`).
 5. Nadpisanie `--lrc-*` zmienia wygląd kontrolek bez `!important`.
+6. README zaktualizowany: nazwa, instalacja (git + UMD), pełne API heading-up
+   (`setHeading`/`stopHeadingUp`/`getHeadingUp`), sekcja zmiennych CSS.
 
 ## Poza zakresem (YAGNI)
 
