@@ -19,7 +19,7 @@
     ".geo-cone{position:absolute;left:-55px;top:-56px;width:110px;height:56px;",
     "background:linear-gradient(to top, rgba(26,115,232,.65), rgba(26,115,232,.18) 55%, rgba(26,115,232,0));",
     "-webkit-clip-path:polygon(43% 100%, 57% 100%, 82% 0, 18% 0);clip-path:polygon(43% 100%, 57% 100%, 82% 0, 18% 0)}",
-    ".geo-locate-btn{background:#fff;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer}",
+    ".leaflet-bar a.geo-locate-btn{background:#fff;width:30px;height:30px;line-height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer}",
     ".geo-locate-btn.active{color:#1a73e8}",
     ".geo-locate-btn.paused{color:#9aa0a6}",
     ".geo-locate-btn svg{display:block}",
@@ -32,6 +32,7 @@
   var following = false;
   var lastLat = null;
   var lastLng = null;
+  var interacting = false; // palec/mysz na mapie — nie ruszamy mapą z czujników
 
   var posIcon = L.divIcon({
     className: "",
@@ -41,7 +42,7 @@
   });
 
   function onUpdate(e) {
-    if (!active) return;
+    if (!active || interacting) return;
     var d = e.detail;
     if (following && d.heading != null) map.setHeading(d.heading);
 
@@ -98,6 +99,31 @@
     console.warn("geo:error", e.detail);
   }
 
+  function onPress() {
+    interacting = true;
+  }
+  function onRelease(e) {
+    if (e && e.touches && e.touches.length > 0) return; // jeszcze palce na ekranie
+    interacting = false;
+  }
+  function bindInteract() {
+    var c = map._container;
+    c.addEventListener("touchstart", onPress, { passive: true });
+    c.addEventListener("touchend", onRelease, { passive: true });
+    c.addEventListener("touchcancel", onRelease, { passive: true });
+    c.addEventListener("mousedown", onPress);
+    global.addEventListener("mouseup", onRelease);
+  }
+  function unbindInteract() {
+    var c = map._container;
+    c.removeEventListener("touchstart", onPress);
+    c.removeEventListener("touchend", onRelease);
+    c.removeEventListener("touchcancel", onRelease);
+    c.removeEventListener("mousedown", onPress);
+    global.removeEventListener("mouseup", onRelease);
+    interacting = false;
+  }
+
   function enable() {
     if (active) return;
     active = true;
@@ -105,7 +131,8 @@
     updateBtn();
     global.addEventListener("geo:update", onUpdate);
     global.addEventListener("geo:error", onError);
-    map.on("dragstart", onUserMove);
+    map.on("dragstart zoomstart", onUserMove);
+    bindInteract();
     GeoHeading.start();
   }
 
@@ -115,7 +142,8 @@
     updateBtn();
     global.removeEventListener("geo:update", onUpdate);
     global.removeEventListener("geo:error", onError);
-    map.off("dragstart", onUserMove);
+    map.off("dragstart zoomstart", onUserMove);
+    unbindInteract();
     if (GeoHeading.isRunning()) GeoHeading.stop();
     map.stopHeadingUp();
     map.setBearing(0);
