@@ -438,3 +438,159 @@ const _mapProto = L.Map.prototype;
     this.setBearing(current + diff * this._headingEase);
     this._headingRAF = L.Util.requestAnimFrame(this._headingAnim, this);
   };
+
+// =====================================================================
+  // 6. L.Marker — rotation-aware positioning
+  // =====================================================================
+  L.Marker.mergeOptions({
+    rotation: 0,
+    rotateWithView: false,
+    scale: undefined,
+  });
+
+  var _markerGetEvents = L.Marker.prototype.getEvents;
+  L.Marker.prototype.getEvents = function () {
+    var events = _markerGetEvents.call(this);
+    if (this._map && this._map._rotate) {
+      events.rotate = this.update;
+    }
+    return events;
+  };
+
+  var _markerSetPos = L.Marker.prototype._setPos;
+  L.Marker.prototype._setPos = function (pos) {
+    if (this._map && this._map._rotate && this._map._bearing) {
+      pos = this._map.rotatedPointToMapPanePoint(pos);
+    }
+    if (_markerSetPos) {
+      _markerSetPos.call(this, pos);
+      return;
+    }
+    L.DomUtil.setPosition(this._icon, pos);
+    if (this._shadow) {
+      L.DomUtil.setPosition(this._shadow, pos);
+    }
+    this._zIndex = pos.y + this.options.zIndexOffset;
+    this._resetZIndex();
+  };
+
+  var _markerUpdate = L.Marker.prototype.update;
+  L.Marker.prototype.update = function () {
+    var result = _markerUpdate.call(this);
+    if (this._icon && this._map) {
+      var rotation = this.options.rotation || 0;
+      if (this.options.rotateWithView) {
+        rotation += this._map._bearing;
+      }
+      if (rotation || this.options.scale) {
+        var pos = L.DomUtil.getPosition(this._icon) || new L.Point(0, 0);
+        var transform = "translate3d(" + pos.x + "px," + pos.y + "px,0)";
+        if (rotation) {
+          transform += " rotate(" + rotation + "deg)";
+        }
+        if (this.options.scale) {
+          transform += " scale(" + this.options.scale + ")";
+        }
+        this._icon.style[L.DomUtil.TRANSFORM] = transform;
+      }
+    }
+    return result;
+  };
+
+  // =====================================================================
+  // 7. L.Icon — transform-origin on anchor
+  // =====================================================================
+  var _setIconStyles = L.Icon.prototype._setIconStyles;
+  L.Icon.prototype._setIconStyles = function (img, name) {
+    _setIconStyles.call(this, img, name);
+    var anchor = this.options.iconAnchor || this.options.shadowAnchor;
+    if (anchor) {
+      img.style[L.DomUtil.TRANSFORM + "Origin"] =
+        anchor[0] + "px " + anchor[1] + "px";
+    }
+  };
+
+  // =====================================================================
+  // 8. L.DivOverlay / L.Popup / L.Tooltip — rotation support
+  // =====================================================================
+  if (L.DivOverlay) {
+    var _divOverlayGetEvents = L.DivOverlay.prototype.getEvents;
+    L.DivOverlay.prototype.getEvents = function () {
+      var events = _divOverlayGetEvents.call(this);
+      if (this._map && this._map._rotate) {
+        events.rotate = this._updatePosition;
+      }
+      return events;
+    };
+  }
+
+  if (L.Popup) {
+    var _popupUpdatePosition = L.Popup.prototype._updatePosition;
+    L.Popup.prototype._updatePosition = function () {
+      if (!this._map) return;
+      if (!this._map._rotate || !this._map._bearing) {
+        return _popupUpdatePosition.call(this);
+      }
+
+      var pos = this._map.latLngToLayerPoint(this._latlng);
+      var rotatedPos = this._map.rotatedPointToMapPanePoint(pos);
+      var offset = L.point(this.options.offset);
+      var anchor = this._getAnchor();
+      L.DomUtil.setPosition(this._container, rotatedPos.add(anchor));
+
+      this._containerBottom = -offset.y;
+      this._containerLeft =
+        -Math.round(this._containerWidth / 2) + offset.x;
+      this._container.style.bottom = this._containerBottom + "px";
+      this._container.style.left = this._containerLeft + "px";
+    };
+
+    var _popupAnimateZoom = L.Popup.prototype._animateZoom;
+    L.Popup.prototype._animateZoom = function (e) {
+      if (!this._map || !this._map._rotate || !this._map._bearing) {
+        if (_popupAnimateZoom) return _popupAnimateZoom.call(this, e);
+        return;
+      }
+      var pos = this._map._latLngToNewLayerPoint(
+        this._latlng,
+        e.zoom,
+        e.center,
+      );
+      pos = this._map.rotatedPointToMapPanePoint(pos);
+      var anchor = this._getAnchor();
+      L.DomUtil.setPosition(this._container, pos.add(anchor));
+    };
+
+    var _popupAdjustPan = L.Popup.prototype._adjustPan;
+    L.Popup.prototype._adjustPan = function () {
+      if (this._map && this._map._rotate) return;
+      if (_popupAdjustPan) _popupAdjustPan.call(this);
+    };
+  }
+
+  if (L.Tooltip) {
+    var _tooltipUpdatePosition = L.Tooltip.prototype._updatePosition;
+    L.Tooltip.prototype._updatePosition = function () {
+      if (!this._map) return;
+      if (!this._map._rotate || !this._map._bearing) {
+        return _tooltipUpdatePosition.call(this);
+      }
+
+      var pos = this._map.latLngToLayerPoint(this._latlng);
+      this._setPosition(this._map.rotatedPointToMapPanePoint(pos));
+    };
+
+    var _tooltipAnimateZoom = L.Tooltip.prototype._animateZoom;
+    L.Tooltip.prototype._animateZoom = function (e) {
+      if (!this._map || !this._map._rotate || !this._map._bearing) {
+        if (_tooltipAnimateZoom) return _tooltipAnimateZoom.call(this, e);
+        return;
+      }
+      var pos = this._map._latLngToNewLayerPoint(
+        this._latlng,
+        e.zoom,
+        e.center,
+      );
+      this._setPosition(this._map.rotatedPointToMapPanePoint(pos));
+    };
+  }
