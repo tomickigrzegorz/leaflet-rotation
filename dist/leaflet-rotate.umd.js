@@ -56,7 +56,7 @@
   // =====================================================================
     // 3. L.Map — core rotation
     // =====================================================================
-    var _mapProto = L.Map.prototype;
+    var _mapProto$1 = L.Map.prototype;
 
     L.Map.mergeOptions({
       rotate: false,
@@ -67,8 +67,8 @@
       rotateControl: false,
     });
 
-    var _mapInitialize = _mapProto.initialize;
-    _mapProto.initialize = function (id, options) {
+    var _mapInitialize = _mapProto$1.initialize;
+    _mapProto$1.initialize = function (id, options) {
       if (options && options.rotate) {
         this._rotate = true;
         this._bearing = 0;
@@ -81,8 +81,8 @@
     };
 
     // --- Pane hierarchy ---
-    var _initPanes = _mapProto._initPanes;
-    _mapProto._initPanes = function () {
+    var _initPanes = _mapProto$1._initPanes;
+    _mapProto$1._initPanes = function () {
       _initPanes.call(this);
       if (!this._rotate) return;
 
@@ -106,7 +106,7 @@
     };
 
     // --- setBearing / getBearing ---
-    _mapProto.setBearing = function (theta) {
+    _mapProto$1.setBearing = function (theta) {
       if (!this._rotate) return;
       this._commitRotatePan();
       var bearing = ((theta % 360) + 360) % 360;
@@ -116,11 +116,11 @@
       this.fire("rotate");
     };
 
-    _mapProto.getBearing = function () {
+    _mapProto$1.getBearing = function () {
       return this._bearing || 0;
     };
 
-    _mapProto._updateRotatePaneTransform = function () {
+    _mapProto$1._updateRotatePaneTransform = function () {
       if (!this._rotatePane) return;
       if (!this._bearing) {
         this._rotatePane.style[L.DomUtil.TRANSFORM] = "";
@@ -137,7 +137,7 @@
 
     // After a pan, reproject so the map pane position returns to (0,0).
     // Keeps the rotation pivot (transform-origin) at the viewport center.
-    _mapProto._commitRotatePan = function () {
+    _mapProto$1._commitRotatePan = function () {
       if (!this._rotate || this._committingRotatePan) return;
       var pos = this._getMapPanePos();
       if (!pos || (pos.x === 0 && pos.y === 0)) return;
@@ -153,8 +153,8 @@
     // Inverse:
     //   layerPoint = (cp - mapPanePos - viewHalf).rotate(-bearing) + viewHalf
 
-    var _containerPointToLayerPoint = _mapProto.containerPointToLayerPoint;
-    _mapProto.containerPointToLayerPoint = function (point) {
+    var _containerPointToLayerPoint = _mapProto$1.containerPointToLayerPoint;
+    _mapProto$1.containerPointToLayerPoint = function (point) {
       if (!this._rotate || !this._bearing) {
         return _containerPointToLayerPoint.call(this, point);
       }
@@ -168,8 +168,8 @@
         .add(viewHalf);
     };
 
-    var _layerPointToContainerPoint = _mapProto.layerPointToContainerPoint;
-    _mapProto.layerPointToContainerPoint = function (point) {
+    var _layerPointToContainerPoint = _mapProto$1.layerPointToContainerPoint;
+    _mapProto$1.layerPointToContainerPoint = function (point) {
       if (!this._rotate || !this._bearing) {
         return _layerPointToContainerPoint.call(this, point);
       }
@@ -186,13 +186,13 @@
     // --- rotatedPointToMapPanePoint ---
     // Converts a layer point (rotatePane coords) to norotatePane coords.
     // Marker is in norotatePane, so its position = lp.rotateFrom(bearing, viewHalf)
-    _mapProto.rotatedPointToMapPanePoint = function (point) {
+    _mapProto$1.rotatedPointToMapPanePoint = function (point) {
       if (!this._bearing) return L.point(point);
       var viewHalf = this.getSize().divideBy(2);
       return L.point(point).rotateFrom(this._bearingRad, viewHalf);
     };
 
-    _mapProto.mapPanePointToRotatedPoint = function (point) {
+    _mapProto$1.mapPanePointToRotatedPoint = function (point) {
       if (!this._bearing) return L.point(point);
       var viewHalf = this.getSize().divideBy(2);
       return L.point(point).rotateFrom(-this._bearingRad, viewHalf);
@@ -200,8 +200,8 @@
 
     // --- _getCenterOffset ---
     // Returns screen-space offset for panBy to work correctly with rotation.
-    var _getCenterOffset = _mapProto._getCenterOffset;
-    _mapProto._getCenterOffset = function (latlng) {
+    var _getCenterOffset = _mapProto$1._getCenterOffset;
+    _mapProto$1._getCenterOffset = function (latlng) {
       if (!this._rotate || !this._bearing) {
         return _getCenterOffset.call(this, latlng);
       }
@@ -210,8 +210,8 @@
     };
 
     // --- getBounds with 4 corners ---
-    var _getBounds = _mapProto.getBounds;
-    _mapProto.getBounds = function () {
+    var _getBounds = _mapProto$1.getBounds;
+    _mapProto$1.getBounds = function () {
       if (!this._rotate || !this._bearing) {
         return _getBounds.call(this);
       }
@@ -224,7 +224,7 @@
       return bounds;
     };
 
-    _mapProto.mapBoundsToContainerBounds = function (bounds) {
+    _mapProto$1.mapBoundsToContainerBounds = function (bounds) {
       return L.bounds([
         this.latLngToContainerPoint(bounds.getNorthWest()),
         this.latLngToContainerPoint(bounds.getNorthEast()),
@@ -233,8 +233,8 @@
       ]);
     };
 
-    var _getBoundsZoom = _mapProto.getBoundsZoom;
-    _mapProto.getBoundsZoom = function (bounds, inside, padding) {
+    var _getBoundsZoom = _mapProto$1.getBoundsZoom;
+    _mapProto$1.getBoundsZoom = function (bounds, inside, padding) {
       if (!this._rotate || !this._bearing) {
         return _getBoundsZoom.call(this, bounds, inside, padding);
       }
@@ -257,7 +257,7 @@
     };
 
     // --- _animateZoomNoDelay (PR#61 fix) ---
-    _mapProto._animateZoomNoDelay = function (center, zoom, startAnim) {
+    _mapProto$1._animateZoomNoDelay = function (center, zoom, startAnim) {
       if (!this._mapPane) return;
       if (startAnim) {
         this._animatingZoom = true;
@@ -274,8 +274,8 @@
     // pane offset is zero. A leftover pan offset gave a wrong center + gray tiles,
     // so commit the pan (reproject to mapPanePos = 0, visually identical) before
     // animating, then let the standard animation run.
-    var _tryAnimatedZoom = _mapProto._tryAnimatedZoom;
-    _mapProto._tryAnimatedZoom = function (center, zoom, options) {
+    var _tryAnimatedZoom = _mapProto$1._tryAnimatedZoom;
+    _mapProto$1._tryAnimatedZoom = function (center, zoom, options) {
       if (this._rotate && this._bearing && !this._animatingZoom) {
         var pos = this._getMapPanePos();
         if (pos && (pos.x || pos.y)) {
@@ -386,6 +386,61 @@
       // Latlng of bounds.min captured while renderer zoom == map zoom, so
       // _updateTransform can reproject it even after map._zoom changed (pinch).
       this._boundsMinLatLng = map.layerPointToLatLng(this._bounds.min);
+    };
+
+  const _mapProto = L.Map.prototype;
+
+    // --- Heading-up: smooth, source-agnostic ---
+    // Any provider (geolocation, LocateControl, ...) feeds a heading in degrees
+    // (0 = N, clockwise). An internal rAF loop eases the bearing toward
+    // heading-up so a flood of updates never makes the map jump.
+    _mapProto.setHeading = function (deg, options) {
+      if (!this._rotate) return this;
+      if (deg === null || deg === undefined || isNaN(deg)) {
+        return this.stopHeadingUp();
+      }
+      options = options || {};
+      this._headingUp = true;
+      this._headingEase = options.ease != null ? options.ease : 0.2;
+      this._headingDeadzone =
+        options.deadzone != null ? options.deadzone : 0.5;
+      // Heading direction must point to the top of the screen: bearing = -heading.
+      this._headingTarget = (((-deg % 360) + 360) % 360);
+      this._startHeadingAnim();
+      return this;
+    };
+
+    _mapProto.stopHeadingUp = function () {
+      this._headingUp = false;
+      if (this._headingRAF) {
+        L.Util.cancelAnimFrame(this._headingRAF);
+        this._headingRAF = null;
+      }
+      return this;
+    };
+
+    _mapProto.getHeadingUp = function () {
+      return !!this._headingUp;
+    };
+
+    _mapProto._startHeadingAnim = function () {
+      if (this._headingRAF) return;
+      this._headingRAF = L.Util.requestAnimFrame(this._headingAnim, this);
+    };
+
+    _mapProto._headingAnim = function () {
+      this._headingRAF = null;
+      if (!this._headingUp) return;
+      var current = this.getBearing();
+      var diff = this._headingTarget - current;
+      while (diff > 180) diff -= 360;
+      while (diff < -180) diff += 360;
+      if (Math.abs(diff) < this._headingDeadzone) {
+        if (Math.abs(diff) > 0.001) this.setBearing(this._headingTarget);
+        return; // settled; loop restarts on next setHeading
+      }
+      this.setBearing(current + diff * this._headingEase);
+      this._headingRAF = L.Util.requestAnimFrame(this._headingAnim, this);
     };
 
 }));
