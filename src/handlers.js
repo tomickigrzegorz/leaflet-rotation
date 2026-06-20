@@ -10,7 +10,8 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
   // =====================================================================
   L.Map.TouchGestures = L.Handler.extend({
     _ROTATION_THRESHOLD: 30 * DEG_TO_RAD,
-    _SCALE_THRESHOLD: 0.015,
+    _SCALE_THRESHOLD: 0.04,
+    _SCALE_THRESHOLD_ROT: 0.12,
     _MOVE_THRESHOLD: 4,
 
     addHooks: function () {
@@ -56,13 +57,20 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
         return;
       }
       var map = this._map;
+      // Only set the flag when WE disable dragging here. A re-entrant touchstart
+      // (finger added/jittered mid-gesture) finds dragging already disabled — do
+      // NOT clear the flag, or touchend won't re-enable it and pan stays dead.
       if (map.dragging && map.dragging.enabled()) {
         this._draggingWasEnabled = true;
         map.dragging.disable();
-      } else {
-        this._draggingWasEnabled = false;
       }
       if (map._stop) map._stop();
+      // A two-finger gesture = manual control. Kill the heading-up easing loop
+      // NOW (touchstart), before any gesture math. Otherwise its per-frame
+      // setBearing races the pinch's _move loop → markers/tiles drift (only with
+      // geolocation on). Previously stopped only past the 30° rotate threshold,
+      // so a pure pinch-zoom left the loop running.
+      map.stopHeadingUp();
       // Absorb any pan offset (mapPanePos -> 0) before the pinch so the anchor
       // math and _move don't double-apply it (otherwise content drifts).
       map._commitRotatePan();
@@ -121,7 +129,11 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
       var rotationBeyond =
         map.options.touchRotate &&
         Math.abs(angleDelta) > this._ROTATION_THRESHOLD;
-      var scaleBeyond = scaleDelta > this._SCALE_THRESHOLD;
+      var scaleBeyond =
+        scaleDelta >
+        (this._rotationActive
+          ? this._SCALE_THRESHOLD_ROT
+          : this._SCALE_THRESHOLD);
       var moveBeyond = midpointDelta > this._MOVE_THRESHOLD;
 
       if (!this._moved) {
@@ -161,6 +173,7 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
             this._rotationActive = true;
             this._rotRefAngle = angle;
             map.stopHeadingUp();
+            map.fire("rotatestart");
           }
         }
         if (this._rotationActive) {
@@ -214,12 +227,13 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
     },
 
     _onTouchEnd: function (e) {
-      if (!this._active) return;
-      this._active = false;
       var map = this._map;
       if (this._draggingWasEnabled && map.dragging) {
         map.dragging.enable();
+        this._draggingWasEnabled = false;
       }
+      if (!this._active) return;
+      this._active = false;
       if (!this._moved) return;
       if (this._animRequest) {
         L.Util.cancelAnimFrame(this._animRequest);
@@ -272,6 +286,7 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
       L.DomEvent.stop(e);
       var map = this._map;
       map.stopHeadingUp();
+      if (!this._animating) map.fire("rotatestart");
       var delta = L.DomEvent.getWheelDelta(e);
       var next = map.getBearing() - delta * this._ROTATE_STEP;
       this._targetBearing = ((next % 360) + 360) % 360;
@@ -402,6 +417,7 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
     _onMove: function (e) {
       var dx = e.clientX - this._startX;
       if (!this._moved && Math.abs(dx) < 2) return;
+      if (!this._moved) this._map.fire("rotatestart");
       this._moved = true;
       this._map.stopHeadingUp();
       this._map.setBearing(this._startBearing + dx * this._SENSITIVITY);
@@ -433,27 +449,40 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
   // =====================================================================
   // 12. MarkerDrag fix — convert coords in rotated map
   // =====================================================================
-  if (L.Handler.MarkerDrag) {
-    var _markerDragOnDrag = L.Handler.MarkerDrag.prototype._onDrag;
-    L.Handler.MarkerDrag.prototype._onDrag = function (e) {
-      var marker = this._marker;
-      var map = marker._map;
+  // Leaflet 1.9's MarkerDrag handler is an internal var, not exposed as
+  // L.Handler.MarkerDrag, so patch its prototype lazily the first time a
+  // marker builds its dragging handler (in _initInteraction).
+  var _markerInitInteraction = L.Marker.prototype._initInteraction;
+  L.Marker.prototype._initInteraction = function () {
+    var result = _markerInitInteraction.call(this);
+    if (this.dragging) {
+      var proto = Object.getPrototypeOf(this.dragging);
+      if (proto && proto._onDrag && !proto._rotateOnDragPatched) {
+        proto._rotateOnDragPatched = true;
+        var _markerDragOnDrag = proto._onDrag;
+        proto._onDrag = function (e) {
+          var marker = this._marker;
+          var map = marker._map;
 
-      if (map && map._rotate && map._bearing) {
-        var iconPos = L.DomUtil.getPosition(marker._icon);
-        var layerPos = map.mapPanePointToRotatedPoint(iconPos);
-        var latlng = map.layerPointToLatLng(layerPos);
+          if (map && map._rotate && map._bearing) {
+            var iconPos = L.DomUtil.getPosition(marker._icon);
+            var layerPos = map.mapPanePointToRotatedPoint(iconPos);
+            var latlng = map.layerPointToLatLng(layerPos);
 
-        marker._latlng = latlng;
-        e.latlng = latlng;
-        e.oldLatLng = this._oldLatLng;
-        marker.fire("move", e);
-        if (marker._shadowLatLng) marker._shadowLatLng = latlng;
-        if (this._oldLatLng) marker.fire("drag", e);
-        this._oldLatLng = latlng;
-        return;
+            if (marker._shadow) {
+              L.DomUtil.setPosition(marker._shadow, iconPos);
+            }
+
+            marker._latlng = latlng;
+            e.latlng = latlng;
+            e.oldLatLng = this._oldLatLng;
+            marker.fire("move", e).fire("drag", e);
+            return;
+          }
+
+          return _markerDragOnDrag.call(this, e);
+        };
       }
-
-      if (_markerDragOnDrag) return _markerDragOnDrag.call(this, e);
-    };
-  }
+    }
+    return result;
+  };

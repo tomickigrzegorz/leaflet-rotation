@@ -4,179 +4,184 @@
 //   CustomEvent('geo:status', { detail: { sensors, permission } })
 //   CustomEvent('geo:error',  { detail: { code, message } })
 // Użycie: GeoHeading.start() (po geście użytkownika), GeoHeading.stop().
-(function (global) {
-  "use strict";
 
-  var DEG = Math.PI / 180;
-  var RAD = 180 / Math.PI;
+class GeoHeadingSensor {
+  static DEG = Math.PI / 180;
+  static RAD = 180 / Math.PI;
 
-  var state = {
-    running: false,
-    watchId: null,
-    lat: null,
-    lng: null,
-    accuracy: null,
-    heading: null, // wygładzony, stopnie 0..360 (0=N, zgodnie z zegarem)
-    lastEmitHeading: null,
-    source: null,
+  constructor() {
+    this.running = false;
+    this.watchId = null;
+    this.lat = null;
+    this.lng = null;
+    this.accuracy = null;
+    this.heading = null; // wygładzony, stopnie 0..360 (0=N, zgodnie z zegarem)
+    this.lastEmitHeading = null;
+    this.source = null;
     // low-pass na wektorze kierunku (bez problemu z zawijaniem 359->0)
-    sx: null,
-    sy: null,
-    k: 0.2,
-    lastEmit: 0,
-    minEmitMs: 16, // ~60 Hz
-  };
+    this.sx = null;
+    this.sy = null;
+    this.k = 0.2;
+    this.lastEmit = 0;
+    this.minEmitMs = 16; // ~60 Hz
+    this._orientEvName = null;
 
-  function emit(name, detail) {
-    global.dispatchEvent(new CustomEvent(name, { detail: detail }));
+    // bind — żeby removeEventListener trafił w tę samą referencję
+    this._onOrientation = this._onOrientation.bind(this);
+    this._onPosition = this._onPosition.bind(this);
+    this._onPositionError = this._onPositionError.bind(this);
   }
 
-  function emitUpdate(force) {
-    var now = Date.now();
-    if (!force && now - state.lastEmit < state.minEmitMs) return;
-    state.lastEmit = now;
-    emit("geo:update", {
-      lat: state.lat,
-      lng: state.lng,
-      accuracy: state.accuracy,
-      heading: state.heading,
-      source: state.source,
+  emit(name, detail) {
+    window.dispatchEvent(new CustomEvent(name, { detail }));
+  }
+
+  _emitUpdate(force) {
+    const now = Date.now();
+    if (!force && now - this.lastEmit < this.minEmitMs) return;
+    this.lastEmit = now;
+    this.emit("geo:update", {
+      lat: this.lat,
+      lng: this.lng,
+      accuracy: this.accuracy,
+      heading: this.heading,
+      source: this.source,
     });
   }
 
   // --- wygładzanie kierunku ---
-  function pushHeading(deg) {
+  _pushHeading(deg) {
     if (deg == null || isNaN(deg)) return;
-    var s = Math.sin(deg * DEG),
-      c = Math.cos(deg * DEG);
-    if (state.sx === null) {
-      state.sx = s;
-      state.sy = c;
+    const s = Math.sin(deg * GeoHeadingSensor.DEG);
+    const c = Math.cos(deg * GeoHeadingSensor.DEG);
+    if (this.sx === null) {
+      this.sx = s;
+      this.sy = c;
     } else {
-      state.sx += state.k * (s - state.sx);
-      state.sy += state.k * (c - state.sy);
+      this.sx += this.k * (s - this.sx);
+      this.sy += this.k * (c - this.sy);
     }
-    var h = Math.atan2(state.sx, state.sy) * RAD;
-    state.heading = ((h % 360) + 360) % 360;
+    const h = Math.atan2(this.sx, this.sy) * GeoHeadingSensor.RAD;
+    this.heading = ((h % 360) + 360) % 360;
   }
 
   // --- kierunek ze zdarzenia deviceorientation ---
-  function onOrientation(e) {
-    var heading = null;
+  _onOrientation(e) {
+    let heading = null;
     if (typeof e.webkitCompassHeading === "number") {
       // iOS: już względem północy, zgodnie z zegarem
       heading = e.webkitCompassHeading;
-      state.source = "compass";
+      this.source = "compass";
     } else if (e.absolute === true && typeof e.alpha === "number") {
       // Android (deviceorientationabsolute): alpha rośnie przeciwnie do zegara
-      var screenAngle =
-        (global.screen.orientation && global.screen.orientation.angle) || 0;
+      const screenAngle =
+        (window.screen.orientation && window.screen.orientation.angle) || 0;
       heading = (360 - e.alpha + screenAngle) % 360;
-      state.source = "compass";
+      this.source = "compass";
     } else if (typeof e.alpha === "number") {
-      var sa =
-        (global.screen.orientation && global.screen.orientation.angle) || 0;
+      const sa =
+        (window.screen.orientation && window.screen.orientation.angle) || 0;
       heading = (360 - e.alpha + sa) % 360;
-      state.source = "compass";
+      this.source = "compass";
     }
     if (heading != null) {
-      pushHeading(((heading % 360) + 360) % 360);
+      this._pushHeading(((heading % 360) + 360) % 360);
       // emituj kompas tylko przy realnej zmianie kierunku (tłumi szum Androida,
       // każdy setHeading = repaint obróconej mapy)
-      var prev = state.lastEmitHeading;
-      var dh =
+      const prev = this.lastEmitHeading;
+      const dh =
         prev == null
           ? 999
-          : Math.abs(((state.heading - prev + 540) % 360) - 180);
+          : Math.abs(((this.heading - prev + 540) % 360) - 180);
       if (dh >= 1.5) {
-        state.lastEmitHeading = state.heading;
-        emitUpdate(false);
+        this.lastEmitHeading = this.heading;
+        this._emitUpdate(false);
       }
     }
   }
 
-  function onPosition(pos) {
-    state.lat = pos.coords.latitude;
-    state.lng = pos.coords.longitude;
-    state.accuracy = pos.coords.accuracy;
-    emitUpdate(true);
+  _onPosition(pos) {
+    this.lat = pos.coords.latitude;
+    this.lng = pos.coords.longitude;
+    this.accuracy = pos.coords.accuracy;
+    this._emitUpdate(true);
   }
 
-  function onPositionError(err) {
-    emit("geo:error", { code: err.code, message: err.message });
+  _onPositionError(err) {
+    this.emit("geo:error", { code: err.code, message: err.message });
   }
 
   // --- nasłuch orientacji (iOS wymaga zgody po geście) ---
-  function addOrientationListener() {
-    var evName =
-      "ondeviceorientationabsolute" in global
+  _addOrientationListener() {
+    const evName =
+      "ondeviceorientationabsolute" in window
         ? "deviceorientationabsolute"
         : "deviceorientation";
-    global.addEventListener(evName, onOrientation, false);
-    state._orientEvName = evName;
+    window.addEventListener(evName, this._onOrientation, false);
+    this._orientEvName = evName;
   }
 
-  function requestOrientationPermission() {
-    var DOE = global.DeviceOrientationEvent;
+  _requestOrientationPermission() {
+    const DOE = window.DeviceOrientationEvent;
     if (DOE && typeof DOE.requestPermission === "function") {
       return DOE.requestPermission()
-        .then(function (res) {
+        .then((res) => {
           if (res === "granted") {
-            addOrientationListener();
+            this._addOrientationListener();
             return true;
           }
           return false;
         })
-        .catch(function () {
-          return false;
-        });
+        .catch(() => false);
     }
-    addOrientationListener();
+    this._addOrientationListener();
     return Promise.resolve(true);
   }
 
-  var GeoHeading = {
-    start: function () {
-      if (state.running) return Promise.resolve(true);
-      state.running = true;
+  start() {
+    if (this.running) return Promise.resolve(true);
+    this.running = true;
 
-      if (!navigator.geolocation) {
-        emit("geo:error", { code: -1, message: "Brak geolokalizacji" });
-      } else {
-        state.watchId = navigator.geolocation.watchPosition(
-          onPosition,
-          onPositionError,
-          { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 },
-        );
-      }
+    if (!navigator.geolocation) {
+      this.emit("geo:error", { code: -1, message: "Brak geolokalizacji" });
+    } else {
+      this.watchId = navigator.geolocation.watchPosition(
+        this._onPosition,
+        this._onPositionError,
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 },
+      );
+    }
 
-      return requestOrientationPermission().then(function (orientationOk) {
-        emit("geo:status", {
-          sensors: { geolocation: !!navigator.geolocation, orientation: orientationOk },
-          permission: orientationOk ? "granted" : "denied",
-        });
-        return orientationOk;
+    return this._requestOrientationPermission().then((orientationOk) => {
+      this.emit("geo:status", {
+        sensors: {
+          geolocation: !!navigator.geolocation,
+          orientation: orientationOk,
+        },
+        permission: orientationOk ? "granted" : "denied",
       });
-    },
+      return orientationOk;
+    });
+  }
 
-    stop: function () {
-      state.running = false;
-      if (state.watchId != null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(state.watchId);
-        state.watchId = null;
-      }
-      if (state._orientEvName) {
-        global.removeEventListener(state._orientEvName, onOrientation, false);
-        state._orientEvName = null;
-      }
-      state.sx = state.sy = null;
-      state.heading = null;
-    },
+  stop() {
+    this.running = false;
+    if (this.watchId != null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+    if (this._orientEvName) {
+      window.removeEventListener(this._orientEvName, this._onOrientation, false);
+      this._orientEvName = null;
+    }
+    this.sx = this.sy = null;
+    this.heading = null;
+  }
 
-    isRunning: function () {
-      return state.running;
-    },
-  };
+  isRunning() {
+    return this.running;
+  }
+}
 
-  global.GeoHeading = GeoHeading;
-})(window);
+// singleton — zgodny z dotychczasowym API (GeoHeading.start() itd.)
+window.GeoHeading = new GeoHeadingSensor();

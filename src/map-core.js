@@ -269,7 +269,10 @@ import { DEG_TO_RAD } from "./constants.js";
     var pixelCenter = map.project(center, this._tileZoom).floor();
     // Clamp scale to <=1 so zoom-out still loads the full (larger) target
     // view; otherwise fast wheel zoom-out left gray gaps.
-    var halfSize = map.getSize().divideBy(Math.min(scale, 1) * 2);
+    var halfSize = map
+      .getSize()
+      .divideBy(Math.min(scale, 1) * 2)
+      .multiplyBy(1.25);
 
     var bounds = new L.Bounds();
     var corners = [

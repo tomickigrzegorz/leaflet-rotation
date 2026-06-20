@@ -107,6 +107,15 @@ After changing `marker.options.rotation` call `marker.update()`.
 | `map.getHeadingUp()` | Returns whether heading-up mode is active. |
 | event `"rotate"` | Fired on every `bearing` change. |
 
+```js
+map.setBearing(45);        // rotate the map to 45°
+map.getBearing();          // -> 45
+
+map.setHeading(compass);   // heading-up from your own source (0=N, clockwise)
+map.setHeading(null);      // stop heading-up easing
+map.stopHeadingUp();       // disable heading-up (keeps current bearing)
+```
+
 ---
 
 ## Rotation controls / interactions
