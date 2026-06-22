@@ -1,13 +1,7 @@
-(function (L) {
-  "use strict";
+/*! @tomickigrzegorz/leaflet-rotate v0.1.0 | MIT */
+import L from 'leaflet';
 
-  if (!L)
-    throw new Error("Leaflet must be loaded before leaflet-rotate-custom.js");
-
-  var DEG_TO_RAD = Math.PI / 180;
-  var RAD_TO_DEG = 180 / Math.PI;
-
-  // =====================================================================
+// =====================================================================
   // 1. L.Point — rotation helpers
   // =====================================================================
   L.Point.prototype.rotate = function (theta) {
@@ -53,10 +47,13 @@
     }
   };
 
-  // =====================================================================
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
+
+// =====================================================================
   // 3. L.Map — core rotation
   // =====================================================================
-  var _mapProto = L.Map.prototype;
+  var _mapProto$1 = L.Map.prototype;
 
   L.Map.mergeOptions({
     rotate: false,
@@ -67,8 +64,8 @@
     rotateControl: false,
   });
 
-  var _mapInitialize = _mapProto.initialize;
-  _mapProto.initialize = function (id, options) {
+  var _mapInitialize = _mapProto$1.initialize;
+  _mapProto$1.initialize = function (id, options) {
     if (options && options.rotate) {
       this._rotate = true;
       this._bearing = 0;
@@ -81,8 +78,8 @@
   };
 
   // --- Pane hierarchy ---
-  var _initPanes = _mapProto._initPanes;
-  _mapProto._initPanes = function () {
+  var _initPanes = _mapProto$1._initPanes;
+  _mapProto$1._initPanes = function () {
     _initPanes.call(this);
     if (!this._rotate) return;
 
@@ -106,7 +103,7 @@
   };
 
   // --- setBearing / getBearing ---
-  _mapProto.setBearing = function (theta) {
+  _mapProto$1.setBearing = function (theta) {
     if (!this._rotate) return;
     this._commitRotatePan();
     var bearing = ((theta % 360) + 360) % 360;
@@ -116,11 +113,11 @@
     this.fire("rotate");
   };
 
-  _mapProto.getBearing = function () {
+  _mapProto$1.getBearing = function () {
     return this._bearing || 0;
   };
 
-  _mapProto._updateRotatePaneTransform = function () {
+  _mapProto$1._updateRotatePaneTransform = function () {
     if (!this._rotatePane) return;
     if (!this._bearing) {
       this._rotatePane.style[L.DomUtil.TRANSFORM] = "";
@@ -137,7 +134,7 @@
 
   // After a pan, reproject so the map pane position returns to (0,0).
   // Keeps the rotation pivot (transform-origin) at the viewport center.
-  _mapProto._commitRotatePan = function () {
+  _mapProto$1._commitRotatePan = function () {
     if (!this._rotate || this._committingRotatePan) return;
     var pos = this._getMapPanePos();
     if (!pos || (pos.x === 0 && pos.y === 0)) return;
@@ -153,8 +150,8 @@
   // Inverse:
   //   layerPoint = (cp - mapPanePos - viewHalf).rotate(-bearing) + viewHalf
 
-  var _containerPointToLayerPoint = _mapProto.containerPointToLayerPoint;
-  _mapProto.containerPointToLayerPoint = function (point) {
+  var _containerPointToLayerPoint = _mapProto$1.containerPointToLayerPoint;
+  _mapProto$1.containerPointToLayerPoint = function (point) {
     if (!this._rotate || !this._bearing) {
       return _containerPointToLayerPoint.call(this, point);
     }
@@ -168,8 +165,8 @@
       .add(viewHalf);
   };
 
-  var _layerPointToContainerPoint = _mapProto.layerPointToContainerPoint;
-  _mapProto.layerPointToContainerPoint = function (point) {
+  var _layerPointToContainerPoint = _mapProto$1.layerPointToContainerPoint;
+  _mapProto$1.layerPointToContainerPoint = function (point) {
     if (!this._rotate || !this._bearing) {
       return _layerPointToContainerPoint.call(this, point);
     }
@@ -186,13 +183,13 @@
   // --- rotatedPointToMapPanePoint ---
   // Converts a layer point (rotatePane coords) to norotatePane coords.
   // Marker is in norotatePane, so its position = lp.rotateFrom(bearing, viewHalf)
-  _mapProto.rotatedPointToMapPanePoint = function (point) {
+  _mapProto$1.rotatedPointToMapPanePoint = function (point) {
     if (!this._bearing) return L.point(point);
     var viewHalf = this.getSize().divideBy(2);
     return L.point(point).rotateFrom(this._bearingRad, viewHalf);
   };
 
-  _mapProto.mapPanePointToRotatedPoint = function (point) {
+  _mapProto$1.mapPanePointToRotatedPoint = function (point) {
     if (!this._bearing) return L.point(point);
     var viewHalf = this.getSize().divideBy(2);
     return L.point(point).rotateFrom(-this._bearingRad, viewHalf);
@@ -200,8 +197,8 @@
 
   // --- _getCenterOffset ---
   // Returns screen-space offset for panBy to work correctly with rotation.
-  var _getCenterOffset = _mapProto._getCenterOffset;
-  _mapProto._getCenterOffset = function (latlng) {
+  var _getCenterOffset = _mapProto$1._getCenterOffset;
+  _mapProto$1._getCenterOffset = function (latlng) {
     if (!this._rotate || !this._bearing) {
       return _getCenterOffset.call(this, latlng);
     }
@@ -210,8 +207,8 @@
   };
 
   // --- getBounds with 4 corners ---
-  var _getBounds = _mapProto.getBounds;
-  _mapProto.getBounds = function () {
+  var _getBounds = _mapProto$1.getBounds;
+  _mapProto$1.getBounds = function () {
     if (!this._rotate || !this._bearing) {
       return _getBounds.call(this);
     }
@@ -224,7 +221,7 @@
     return bounds;
   };
 
-  _mapProto.mapBoundsToContainerBounds = function (bounds) {
+  _mapProto$1.mapBoundsToContainerBounds = function (bounds) {
     return L.bounds([
       this.latLngToContainerPoint(bounds.getNorthWest()),
       this.latLngToContainerPoint(bounds.getNorthEast()),
@@ -233,8 +230,8 @@
     ]);
   };
 
-  var _getBoundsZoom = _mapProto.getBoundsZoom;
-  _mapProto.getBoundsZoom = function (bounds, inside, padding) {
+  var _getBoundsZoom = _mapProto$1.getBoundsZoom;
+  _mapProto$1.getBoundsZoom = function (bounds, inside, padding) {
     if (!this._rotate || !this._bearing) {
       return _getBoundsZoom.call(this, bounds, inside, padding);
     }
@@ -257,7 +254,7 @@
   };
 
   // --- _animateZoomNoDelay (PR#61 fix) ---
-  _mapProto._animateZoomNoDelay = function (center, zoom, startAnim) {
+  _mapProto$1._animateZoomNoDelay = function (center, zoom, startAnim) {
     if (!this._mapPane) return;
     if (startAnim) {
       this._animatingZoom = true;
@@ -268,13 +265,20 @@
     this._onZoomTransitionEnd();
   };
 
-  // --- Disable animated zoom while rotated ---
-  // The animated zoom path doesn't reset mapPane / transform rotatePane when a
-  // non-zero pan offset exists, giving a wrong center + gray tiles (e.g. wheel
-  // zoom after panning). The non-animated _resetView path is rotation-correct.
-  var _tryAnimatedZoom = _mapProto._tryAnimatedZoom;
-  _mapProto._tryAnimatedZoom = function (center, zoom, options) {
-    if (this._rotate && this._bearing) return false;
+  // --- Smooth (animated) zoom while rotated ---
+  // The animated zoom path is rotation-correct (rotation-aware _getCenterOffset,
+  // renderer _updateTransform, marker/popup _animateZoom) as long as the map
+  // pane offset is zero. A leftover pan offset gave a wrong center + gray tiles,
+  // so commit the pan (reproject to mapPanePos = 0, visually identical) before
+  // animating, then let the standard animation run.
+  var _tryAnimatedZoom = _mapProto$1._tryAnimatedZoom;
+  _mapProto$1._tryAnimatedZoom = function (center, zoom, options) {
+    if (this._rotate && this._bearing && !this._animatingZoom) {
+      var pos = this._getMapPanePos();
+      if (pos && (pos.x || pos.y)) {
+        this._resetView(this.getCenter(), this.getZoom(), true);
+      }
+    }
     return _tryAnimatedZoom.call(this, center, zoom, options);
   };
 
@@ -314,7 +318,10 @@
     var pixelCenter = map.project(center, this._tileZoom).floor();
     // Clamp scale to <=1 so zoom-out still loads the full (larger) target
     // view; otherwise fast wheel zoom-out left gray gaps.
-    var halfSize = map.getSize().divideBy(Math.min(scale, 1) * 2);
+    var halfSize = map
+      .getSize()
+      .divideBy(Math.min(scale, 1) * 2)
+      .multiplyBy(1.25);
 
     var bounds = new L.Bounds();
     var corners = [
@@ -343,17 +350,13 @@
 
   var _rendererUpdateTransform = L.Renderer.prototype._updateTransform;
   L.Renderer.prototype._updateTransform = function (center, zoom) {
-    if (!this._map || !this._map._rotate || !this._map._bearing) {
+    if (!this._map || !this._map._rotate) {
       return _rendererUpdateTransform.call(this, center, zoom);
     }
-    if (!this._bounds) return;
+    if (!this._bounds || !this._boundsMinLatLng) return;
     var map = this._map;
     var scale = map.getZoomScale(zoom, this._zoom);
-    var offset = map._latLngToNewLayerPoint(
-      map.layerPointToLatLng(this._bounds.min),
-      zoom,
-      center,
-    );
+    var offset = map._latLngToNewLayerPoint(this._boundsMinLatLng, zoom, center);
     L.DomUtil.setTransform(this._container, offset, scale);
   };
 
@@ -380,9 +383,67 @@
     );
     this._center = map.getCenter();
     this._zoom = map.getZoom();
+    // Latlng of bounds.min captured while renderer zoom == map zoom, so
+    // _updateTransform can reproject it even after map._zoom changed (pinch).
+    this._boundsMinLatLng = map.layerPointToLatLng(this._bounds.min);
   };
 
-  // =====================================================================
+const _mapProto = L.Map.prototype;
+
+  // --- Heading-up: smooth, source-agnostic ---
+  // Any provider (geolocation, LocateControl, ...) feeds a heading in degrees
+  // (0 = N, clockwise). An internal rAF loop eases the bearing toward
+  // heading-up so a flood of updates never makes the map jump.
+  _mapProto.setHeading = function (deg, options) {
+    if (!this._rotate) return this;
+    if (deg === null || deg === undefined || isNaN(deg)) {
+      return this.stopHeadingUp();
+    }
+    options = options || {};
+    this._headingUp = true;
+    this._headingEase = options.ease != null ? options.ease : 0.2;
+    this._headingDeadzone =
+      options.deadzone != null ? options.deadzone : 0.5;
+    // Heading direction must point to the top of the screen: bearing = -heading.
+    this._headingTarget = (((-deg % 360) + 360) % 360);
+    this._startHeadingAnim();
+    return this;
+  };
+
+  _mapProto.stopHeadingUp = function () {
+    this._headingUp = false;
+    if (this._headingRAF) {
+      L.Util.cancelAnimFrame(this._headingRAF);
+      this._headingRAF = null;
+    }
+    return this;
+  };
+
+  _mapProto.getHeadingUp = function () {
+    return !!this._headingUp;
+  };
+
+  _mapProto._startHeadingAnim = function () {
+    if (this._headingRAF) return;
+    this._headingRAF = L.Util.requestAnimFrame(this._headingAnim, this);
+  };
+
+  _mapProto._headingAnim = function () {
+    this._headingRAF = null;
+    if (!this._headingUp) return;
+    var current = this.getBearing();
+    var diff = this._headingTarget - current;
+    while (diff > 180) diff -= 360;
+    while (diff < -180) diff += 360;
+    if (Math.abs(diff) < this._headingDeadzone) {
+      if (Math.abs(diff) > 0.001) this.setBearing(this._headingTarget);
+      return; // settled; loop restarts on next setHeading
+    }
+    this.setBearing(current + diff * this._headingEase);
+    this._headingRAF = L.Util.requestAnimFrame(this._headingAnim, this);
+  };
+
+// =====================================================================
   // 6. L.Marker — rotation-aware positioning
   // =====================================================================
   L.Marker.mergeOptions({
@@ -538,7 +599,7 @@
     };
   }
 
-  // =====================================================================
+// =====================================================================
   // 9. Touch Gestures Handler — pinch zoom + rotate (Google Maps style)
   //    - Rotation has a deadzone threshold (~10°) so pinch-zoom works
   //      without accidental rotation
@@ -547,7 +608,8 @@
   // =====================================================================
   L.Map.TouchGestures = L.Handler.extend({
     _ROTATION_THRESHOLD: 30 * DEG_TO_RAD,
-    _SCALE_THRESHOLD: 0.015,
+    _SCALE_THRESHOLD: 0.04,
+    _SCALE_THRESHOLD_ROT: 0.12,
     _MOVE_THRESHOLD: 4,
 
     addHooks: function () {
@@ -593,13 +655,23 @@
         return;
       }
       var map = this._map;
+      // Only set the flag when WE disable dragging here. A re-entrant touchstart
+      // (finger added/jittered mid-gesture) finds dragging already disabled — do
+      // NOT clear the flag, or touchend won't re-enable it and pan stays dead.
       if (map.dragging && map.dragging.enabled()) {
         this._draggingWasEnabled = true;
         map.dragging.disable();
-      } else {
-        this._draggingWasEnabled = false;
       }
       if (map._stop) map._stop();
+      // A two-finger gesture = manual control. Kill the heading-up easing loop
+      // NOW (touchstart), before any gesture math. Otherwise its per-frame
+      // setBearing races the pinch's _move loop → markers/tiles drift (only with
+      // geolocation on). Previously stopped only past the 30° rotate threshold,
+      // so a pure pinch-zoom left the loop running.
+      map.stopHeadingUp();
+      // Absorb any pan offset (mapPanePos -> 0) before the pinch so the anchor
+      // math and _move don't double-apply it (otherwise content drifts).
+      map._commitRotatePan();
       var p1 = map.mouseEventToContainerPoint(e.touches[0]);
       var p2 = map.mouseEventToContainerPoint(e.touches[1]);
 
@@ -655,7 +727,11 @@
       var rotationBeyond =
         map.options.touchRotate &&
         Math.abs(angleDelta) > this._ROTATION_THRESHOLD;
-      var scaleBeyond = scaleDelta > this._SCALE_THRESHOLD;
+      var scaleBeyond =
+        scaleDelta >
+        (this._rotationActive
+          ? this._SCALE_THRESHOLD_ROT
+          : this._SCALE_THRESHOLD);
       var moveBeyond = midpointDelta > this._MOVE_THRESHOLD;
 
       if (!this._moved) {
@@ -694,6 +770,8 @@
           if (Math.abs(angleDelta) > this._ROTATION_THRESHOLD) {
             this._rotationActive = true;
             this._rotRefAngle = angle;
+            map.stopHeadingUp();
+            map.fire("rotatestart");
           }
         }
         if (this._rotationActive) {
@@ -747,12 +825,13 @@
     },
 
     _onTouchEnd: function (e) {
-      if (!this._active) return;
-      this._active = false;
       var map = this._map;
       if (this._draggingWasEnabled && map.dragging) {
         map.dragging.enable();
+        this._draggingWasEnabled = false;
       }
+      if (!this._active) return;
+      this._active = false;
       if (!this._moved) return;
       if (this._animRequest) {
         L.Util.cancelAnimFrame(this._animRequest);
@@ -804,6 +883,8 @@
       if (!e.shiftKey) return;
       L.DomEvent.stop(e);
       var map = this._map;
+      map.stopHeadingUp();
+      if (!this._animating) map.fire("rotatestart");
       var delta = L.DomEvent.getWheelDelta(e);
       var next = map.getBearing() - delta * this._ROTATE_STEP;
       this._targetBearing = ((next % 360) + 360) % 360;
@@ -934,7 +1015,9 @@
     _onMove: function (e) {
       var dx = e.clientX - this._startX;
       if (!this._moved && Math.abs(dx) < 2) return;
+      if (!this._moved) this._map.fire("rotatestart");
       this._moved = true;
+      this._map.stopHeadingUp();
       this._map.setBearing(this._startBearing + dx * this._SENSITIVITY);
     },
     _onUp: function (e) {
@@ -962,6 +1045,47 @@
   });
 
   // =====================================================================
+  // 12. MarkerDrag fix — convert coords in rotated map
+  // =====================================================================
+  // Leaflet 1.9's MarkerDrag handler is an internal var, not exposed as
+  // L.Handler.MarkerDrag, so patch its prototype lazily the first time a
+  // marker builds its dragging handler (in _initInteraction).
+  var _markerInitInteraction = L.Marker.prototype._initInteraction;
+  L.Marker.prototype._initInteraction = function () {
+    var result = _markerInitInteraction.call(this);
+    if (this.dragging) {
+      var proto = Object.getPrototypeOf(this.dragging);
+      if (proto && proto._onDrag && !proto._rotateOnDragPatched) {
+        proto._rotateOnDragPatched = true;
+        var _markerDragOnDrag = proto._onDrag;
+        proto._onDrag = function (e) {
+          var marker = this._marker;
+          var map = marker._map;
+
+          if (map && map._rotate && map._bearing) {
+            var iconPos = L.DomUtil.getPosition(marker._icon);
+            var layerPos = map.mapPanePointToRotatedPoint(iconPos);
+            var latlng = map.layerPointToLatLng(layerPos);
+
+            if (marker._shadow) {
+              L.DomUtil.setPosition(marker._shadow, iconPos);
+            }
+
+            marker._latlng = latlng;
+            e.latlng = latlng;
+            e.oldLatLng = this._oldLatLng;
+            marker.fire("move", e).fire("drag", e);
+            return;
+          }
+
+          return _markerDragOnDrag.call(this, e);
+        };
+      }
+    }
+    return result;
+  };
+
+// =====================================================================
   // 11. L.Control.Rotate — compass control
   // =====================================================================
   L.Control.Rotate = L.Control.extend({
@@ -1148,35 +1272,7 @@
     }
   });
 
-  // =====================================================================
-  // 12. MarkerDrag fix — convert coords in rotated map
-  // =====================================================================
-  if (L.Handler.MarkerDrag) {
-    var _markerDragOnDrag = L.Handler.MarkerDrag.prototype._onDrag;
-    L.Handler.MarkerDrag.prototype._onDrag = function (e) {
-      var marker = this._marker;
-      var map = marker._map;
-
-      if (map && map._rotate && map._bearing) {
-        var iconPos = L.DomUtil.getPosition(marker._icon);
-        var layerPos = map.mapPanePointToRotatedPoint(iconPos);
-        var latlng = map.layerPointToLatLng(layerPos);
-
-        marker._latlng = latlng;
-        e.latlng = latlng;
-        e.oldLatLng = this._oldLatLng;
-        marker.fire("move", e);
-        if (marker._shadowLatLng) marker._shadowLatLng = latlng;
-        if (this._oldLatLng) marker.fire("drag", e);
-        this._oldLatLng = latlng;
-        return;
-      }
-
-      if (_markerDragOnDrag) return _markerDragOnDrag.call(this, e);
-    };
-  }
-
-  // =====================================================================
+// =====================================================================
   // 13. Block page pinch-zoom gestures (iOS Safari)
   //     CSS touch-action nie wystarcza na iOS — preventDefault na
   //     gesturestart/change/end blokuje zoom całej strony.
@@ -1199,20 +1295,11 @@
     });
   });
 
-  // =====================================================================
-  // CSS injection
-  // =====================================================================
-  var style = document.createElement("style");
-  style.textContent = [
-    ".leaflet-rotate-pane { position: absolute; top: 0; left: 0; will-change: transform; }",
-    ".leaflet-norotate-pane { position: absolute; top: 0; left: 0; z-index: 600; }",
-    ".leaflet-control-rotate { background: #fff; }",
-    ".leaflet-control-rotate a { display: block; width: 26px; height: 26px; line-height: 26px; text-align: center; cursor: pointer; }",
-    ".leaflet-control-rotate a:hover { background: #f4f4f4; }",
-    ".leaflet-control-rotate-compass { background: #fff; }",
-    ".leaflet-control-rotate-compass a { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; cursor: pointer; }",
-    ".leaflet-control-rotate-compass a:hover { background: #f4f4f4; }",
-    ".leaflet-rotate-compass--inactive a svg { filter: grayscale(1); }",
-  ].join("\n");
-  document.head.appendChild(style);
-})(L);
+// Wstrzykuje TYLKO strukturalny CSS paneów (wymagany do działania rotacji).
+// Kosmetyka kontrolek jest w dist/leaflet-rotate.css (opcjonalny import).
+const style = document.createElement("style");
+style.textContent = [
+  ".leaflet-rotate-pane { position: absolute; top: 0; left: 0; will-change: transform; }",
+  ".leaflet-norotate-pane { position: absolute; top: 0; left: 0; z-index: 600; }",
+].join("\n");
+document.head.appendChild(style);

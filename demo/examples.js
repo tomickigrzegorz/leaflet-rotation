@@ -5,24 +5,30 @@
 // Test wydajności: 300 markerów + dodatkowe wielokąty w widoku
 // =====================================================================
 const TEST_BOUNDS = {
-  latMin: 52.215,
-  latMax: 52.245,
-  lngMin: 20.985,
-  lngMax: 21.035,
+  latMin: 52.218174715695576,
+  latMax: 52.248174715695576,
+  lngMin: 20.909453606605533,
+  lngMax: 20.959453606605533,
 };
+
+map.on("click", function (e) {
+  console.log("Click at", e.latlng);
+});
 
 function randIn(min, max) {
   return min + Math.random() * (max - min);
 }
 
-// --- 300 markerów ---
+// --- 100 markerów ---
 (function () {
-  const n = 300;
+  const n = 10;
   const group = L.layerGroup().addTo(map);
   for (let i = 0; i < n; i++) {
     const lat = randIn(TEST_BOUNDS.latMin, TEST_BOUNDS.latMax);
     const lng = randIn(TEST_BOUNDS.lngMin, TEST_BOUNDS.lngMax);
-    L.marker([lat, lng]).bindPopup("Marker #" + (i + 1)).addTo(group);
+    L.marker([lat, lng])
+      .bindPopup("Marker #" + (i + 1))
+      .addTo(group);
   }
 })();
 
@@ -62,22 +68,24 @@ function randIn(min, max) {
 // =====================================================================
 
 // --- Marker 1 (draggable) ---
-L.marker([52.23, 21.01], { draggable: true })
+L.marker([52.233174715695576, 20.934453606605533], { draggable: true })
   .addTo(map)
   .bindPopup("Warszawa — centrum")
-  .bindTooltip("Przeciągnij mnie!", { direction: "top" });
+  .bindTooltip("Przeciągnij mnie!", { direction: "top", offset: [-16, 0] });
 
 // --- Marker 2 ---
-L.marker([52.232, 21.015]).addTo(map).bindPopup("Drugi marker");
+L.marker([52.235174715695576, 20.939453606605533])
+  .addTo(map)
+  .bindPopup("Drugi marker");
 
 // --- Polygon (duży, obok markerów) ---
 L.polygon(
   [
-    [52.231, 21.006],
-    [52.233, 21.01],
-    [52.232, 21.014],
-    [52.23, 21.013],
-    [52.229, 21.009],
+    [52.234174715695576, 20.930453606605533],
+    [52.236174715695576, 20.934453606605533],
+    [52.235174715695576, 20.938453606605533],
+    [52.233174715695576, 20.937453606605533],
+    [52.232174715695576, 20.933453606605533],
   ],
   { color: "green", fillColor: "#0f0", fillOpacity: 0.25, weight: 3 },
 ).addTo(map);
@@ -85,18 +93,18 @@ L.polygon(
 // --- Polyline (niebieska trasa) ---
 L.polyline(
   [
-    [52.232, 21.005],
-    [52.234, 21.008],
-    [52.233, 21.012],
-    [52.231, 21.014],
-    [52.229, 21.011],
-    [52.228, 21.007],
+    [52.235174715695576, 20.929453606605533],
+    [52.237174715695576, 20.932453606605533],
+    [52.236174715695576, 20.936453606605533],
+    [52.234174715695576, 20.938453606605533],
+    [52.232174715695576, 20.935453606605533],
+    [52.231174715695576, 20.931453606605533],
   ],
   { color: "blue", weight: 4 },
 ).addTo(map);
 
 // --- Circle ---
-L.circle([52.231, 21.012], {
+L.circle([52.234174715695576, 20.936453606605533], {
   radius: 200,
   color: "#e63946",
   fillColor: "#e63946",
@@ -109,14 +117,14 @@ L.circle([52.231, 21.012], {
 // --- Rectangle ---
 L.rectangle(
   [
-    [52.228, 21.006],
-    [52.23, 21.01],
+    [52.231174715695576, 20.930453606605533],
+    [52.233174715695576, 20.934453606605533],
   ],
   { color: "#ff7800", weight: 3, fillOpacity: 0.15 },
 ).addTo(map);
 
 // --- CircleMarker ---
-L.circleMarker([52.2325, 21.008], {
+L.circleMarker([52.235674715695576, 20.932453606605533], {
   radius: 12,
   color: "#9b59b6",
   fillColor: "#9b59b6",
@@ -127,8 +135,8 @@ L.circleMarker([52.2325, 21.008], {
 
 // --- Gwiazdka (polygon) ---
 (function () {
-  var cx = 52.2295,
-    cy = 21.013,
+  var cx = 52.232674715695576,
+    cy = 20.937453606605533,
     outer = 0.002,
     inner = 0.0008,
     n = 5;
@@ -151,7 +159,10 @@ L.circleMarker([52.2325, 21.008], {
   var pts = [];
   for (var i = 0; i <= 60; i++) {
     var t = i / 60;
-    pts.push([52.228 + t * 0.006, 21.007 + Math.sin(t * Math.PI * 3) * 0.003]);
+    pts.push([
+      52.231174715695576 + t * 0.006,
+      20.931453606605533 + Math.sin(t * Math.PI * 3) * 0.003,
+    ]);
   }
   L.polyline(pts, {
     color: "#e63946",
@@ -161,7 +172,7 @@ L.circleMarker([52.2325, 21.008], {
 })();
 
 // --- Animowany marker (latający czerwony punkt) ---
-var animMarker = L.marker([52.23, 21.01], {
+var animMarker = L.marker([52.233174715695576, 20.934453606605533], {
   icon: L.divIcon({
     className: "",
     html: '<div style="background:#e74c3c;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(231,76,60,.6)"></div>',
@@ -170,7 +181,7 @@ var animMarker = L.marker([52.23, 21.01], {
   }),
 }).addTo(map);
 
-var flyTarget = [52.231, 21.012];
+var flyTarget = [52.234174715695576, 20.936453606605533];
 function animateFly() {
   var pos = animMarker.getLatLng();
   var dlat = flyTarget[0] - pos.lat,
@@ -178,8 +189,8 @@ function animateFly() {
   var dist = Math.sqrt(dlat * dlat + dlng * dlng);
   if (dist < 0.0003) {
     flyTarget = [
-      52.228 + Math.random() * 0.006,
-      21.006 + Math.random() * 0.012,
+      52.231174715695576 + Math.random() * 0.006,
+      20.930453606605533 + Math.random() * 0.012,
     ];
   } else {
     var s = 0.00012 / dist;
@@ -191,7 +202,7 @@ animateFly();
 
 // --- Obracający się marker (strzałka na orbicie) ---
 (function () {
-  var oc = [52.231, 21.01],
+  var oc = [52.234174715695576, 20.934453606605533],
     or = 0.002;
   var arrow = L.marker(oc, {
     icon: L.divIcon({
@@ -220,8 +231,8 @@ animateFly();
 
 // --- Pulsujący circleMarker + ślad ---
 (function () {
-  var cx = 52.23,
-    cy = 21.013,
+  var cx = 52.233174715695576,
+    cy = 20.937453606605533,
     r = 0.0015;
   var dot = L.circleMarker([cx, cy], {
     radius: 6,
@@ -249,4 +260,97 @@ animateFly();
     requestAnimationFrame(pulseAnim);
   }
   pulseAnim();
+})();
+
+// =====================================================================
+// Test pluginów / dodatkowych typów warstw pod rotacją
+// =====================================================================
+
+// --- Marker SVG (L.divIcon), obraca się z mapą ---
+(function () {
+  var svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">' +
+    '<path d="M17 0C7.6 0 0 7.6 0 17c0 12 17 27 17 27s17-15 17-27C34 7.6 26.4 0 17 0z" fill="#8e44ad" stroke="#fff" stroke-width="2"/>' +
+    '<circle cx="17" cy="17" r="7" fill="#fff"/></svg>';
+  L.marker([52.236674715695576, 20.945453606605533], {
+    icon: L.divIcon({
+      className: "",
+      html: svg,
+      iconSize: [34, 44],
+      iconAnchor: [17, 44],
+      popupAnchor: [0, -40],
+    }),
+    draggable: true,
+  })
+    .addTo(map)
+    .bindPopup("Marker SVG (draggable)");
+})();
+
+// --- Popup otwarty od razu ---
+L.marker([52.230674715695576, 20.948453606605533])
+  .addTo(map)
+  .bindPopup("Popup otwarty od startu")
+  .openPopup();
+
+// --- Klaster markerów (leaflet.markercluster) ---
+(function () {
+  if (!L.markerClusterGroup) {
+    console.warn("markercluster nie załadowany");
+    return;
+  }
+  var cluster = L.markerClusterGroup();
+  for (var i = 0; i < 30; i++) {
+    var lat = randIn(52.2185, 52.2225);
+    var lng = randIn(20.948, 20.958);
+    cluster.addLayer(L.marker([lat, lng]).bindPopup("Klaster #" + (i + 1)));
+  }
+  map.addLayer(cluster);
+})();
+
+// --- GeoJSON layer ---
+(function () {
+  var gj = {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { name: "GeoJSON punkt" },
+        geometry: { type: "Point", coordinates: [20.927453606605533, 52.239674715695576] },
+      },
+      {
+        type: "Feature",
+        properties: { name: "GeoJSON linia" },
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [20.924453606605533, 52.237674715695576],
+            [20.928453606605533, 52.239674715695576],
+            [20.931453606605533, 52.238674715695576],
+          ],
+        },
+      },
+      {
+        type: "Feature",
+        properties: { name: "GeoJSON poligon" },
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [20.921453606605533, 52.236674715695576],
+              [20.925453606605533, 52.237674715695576],
+              [20.924453606605533, 52.234674715695576],
+              [20.920453606605533, 52.234674715695576],
+              [20.921453606605533, 52.236674715695576],
+            ],
+          ],
+        },
+      },
+    ],
+  };
+  L.geoJSON(gj, {
+    style: { color: "#d62828", weight: 2, fillColor: "#f77f00", fillOpacity: 0.3 },
+    onEachFeature: function (f, layer) {
+      if (f.properties && f.properties.name) layer.bindPopup(f.properties.name);
+    },
+  }).addTo(map);
 })();
