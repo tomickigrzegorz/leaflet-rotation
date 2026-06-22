@@ -82,6 +82,15 @@ rotateControl: { position: "topleft", closeOnZeroBearing: true }
 
 Click sets `bearing` to 0 (north).
 
+### Adding controls programmatically
+
+Both controls can also be created via factory functions (e.g. to add them after map init):
+
+```js
+L.control.rotate({ position: "topleft" }).addTo(map);
+L.control.rotateCompass({ enabled: true, position: "bottomright" }).addTo(map);
+```
+
 ---
 
 ## Marker options (`L.marker(latlng, { ... })`)
@@ -98,14 +107,22 @@ After changing `marker.options.rotation` call `marker.update()`.
 
 ## Map API
 
-| Method / event | Description |
+### Methods
+
+| Method | Description |
 |---|---|
 | `map.setBearing(degrees)` | Sets the map rotation angle (0–360, normalised). |
 | `map.getBearing()` | Returns the current rotation angle in degrees. |
 | `map.setHeading(deg, options?)` | Heading-up mode: rotates the map so `deg` (0=N, clockwise) points to the top (`bearing = -deg`), smoothed via a rAF easing loop. `options.ease` (default `0.2`), `options.deadzone` (default `0.5`°). Pass `deg = null` to stop. |
 | `map.stopHeadingUp()` | Disables heading-up mode (does not reset `bearing`). |
 | `map.getHeadingUp()` | Returns whether heading-up mode is active. |
-| event `"rotate"` | Fired on every `bearing` change. |
+
+### Events
+
+| Event | Description |
+|---|---|
+| `"rotatestart"` | Fired once when a rotation gesture begins (drag / shift-wheel / two-finger). |
+| `"rotate"` | Fired on every `bearing` change (gestures, `setBearing`, heading-up easing). |
 
 ```js
 map.setBearing(45);        // rotate the map to 45°
