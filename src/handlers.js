@@ -180,7 +180,8 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
           var rotDelta = angle - this._rotRefAngle;
           while (rotDelta > Math.PI) rotDelta -= 2 * Math.PI;
           while (rotDelta < -Math.PI) rotDelta += 2 * Math.PI;
-          var newBearing = this._startBearing - rotDelta * RAD_TO_DEG;
+          var dir = map.options.rotateClockwise === false ? -1 : 1;
+          var newBearing = this._startBearing + dir * rotDelta * RAD_TO_DEG;
           newBearing = ((newBearing % 360) + 360) % 360;
           map.setBearing(newBearing);
           newBearingRad = map._bearingRad || 0;
@@ -288,7 +289,8 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
       map.stopHeadingUp();
       if (!this._animating) map.fire("rotatestart");
       var delta = L.DomEvent.getWheelDelta(e);
-      var next = map.getBearing() - delta * this._ROTATE_STEP;
+      var dir = map.options.rotateClockwise === false ? -1 : 1;
+      var next = map.getBearing() - dir * delta * this._ROTATE_STEP;
       this._targetBearing = ((next % 360) + 360) % 360;
       if (!this._animating) {
         this._mousePoint = map.mouseEventToContainerPoint(e);
@@ -420,7 +422,8 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
       if (!this._moved) this._map.fire("rotatestart");
       this._moved = true;
       this._map.stopHeadingUp();
-      this._map.setBearing(this._startBearing + dx * this._SENSITIVITY);
+      var dir = this._map.options.rotateClockwise === false ? -1 : 1;
+      this._map.setBearing(this._startBearing + dir * dx * this._SENSITIVITY);
     },
     _onUp: function (e) {
       this._cleanup();

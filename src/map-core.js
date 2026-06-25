@@ -13,6 +13,7 @@ import { DEG_TO_RAD } from "./constants.js";
     shiftKeyRotate: false,
     dragRotate: true,
     rotateControl: false,
+    rotateClockwise: true,
   });
 
   var _mapInitialize = _mapProto.initialize;

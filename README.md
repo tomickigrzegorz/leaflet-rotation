@@ -38,6 +38,7 @@ Load it **after** Leaflet. `leaflet` is a peer dependency (>=1.9).
 | `dragRotate` | `boolean` | `true` | Rotation with the **right mouse button** (horizontal drag). Active only when `rotate: true`. |
 | `shiftKeyRotate` | `boolean` | `false` | Rotation via **Shift + scroll wheel**. Normal scroll-wheel zoom is suppressed while Shift is held. |
 | `touchRotate` | `boolean` | `false` | Rotation with a **two-finger** gesture (pinch-rotate, Google Maps style). Rotation has a ~30° threshold to avoid colliding with pinch-zoom. |
+| `rotateClockwise` | `boolean` | `true` | Direction of all rotation inputs (two-finger, right-mouse drag, Shift+wheel). `true` = clockwise gesture rotates the map clockwise (MapLibre-like). Set `false` to invert all three. |
 | `rotateControl` | `boolean \| object` | `false` | Arrow control that resets bearing to north (see below). |
 | `rotateCompassControl` | `boolean \| object` | `false` | Compass control that toggles rotation (see below). |
 | `preventPageGestures` | `boolean` | `true` | Blocks native page pinch-zoom on iOS Safari (`preventDefault` on `gesturestart/change/end` events) so a pinch acts on the map rather than zooming the page. Not needed on desktop/Android (where `touch-action` suffices) but harmless. Set `false` to disable. Works independently of `rotate`. |
@@ -172,6 +173,7 @@ const map = L.map("map", {
   touchRotate: true,
   shiftKeyRotate: true,
   dragRotate: true,
+  rotateClockwise: true,
   rotateControl: false,
   rotateCompassControl: { enabled: false, position: "bottomright" },
 });

@@ -8,6 +8,7 @@ declare module "leaflet" {
     shiftKeyRotate?: boolean;
     dragRotate?: boolean;
     rotateControl?: boolean | { position?: string; closeOnZeroBearing?: boolean };
+    rotateClockwise?: boolean;
     rotateCompassControl?: boolean | { enabled?: boolean; position?: string };
     preventPageGestures?: boolean;
   }
