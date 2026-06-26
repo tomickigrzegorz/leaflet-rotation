@@ -457,7 +457,8 @@ const _mapProto = L.Map.prototype;
   L.Marker.prototype.getEvents = function () {
     var events = _markerGetEvents.call(this);
     if (this._map && this._map._rotate) {
-      events.rotate = this.update;
+      events.rotate = this._rotateReposition;
+      events.rotateend = this._rotateEnd;
     }
     return events;
   };
@@ -500,6 +501,52 @@ const _mapProto = L.Map.prototype;
       }
     }
     return result;
+  };
+
+  // C: Fast per-frame reposition during rotation. center/zoom are constant
+  // while rotating, so the layer point is cached and only the bearing is
+  // re-applied — skips latLngToLayerPoint projection per marker per frame.
+  L.Marker.prototype._rotateReposition = function () {
+    var map = this._map;
+    if (!map || !this._icon) return;
+    var lp;
+    if (map._rotInertia && this._rotLayerPt) {
+      lp = this._rotLayerPt;
+    } else {
+      lp = map.latLngToLayerPoint(this._latlng);
+      if (map._rotInertia) this._rotLayerPt = lp;
+    }
+    this._setPos(lp);
+    var rotation = this.options.rotation || 0;
+    if (this.options.rotateWithView) {
+      rotation += map._bearing;
+    }
+    if (rotation || this.options.scale) {
+      var pos = L.DomUtil.getPosition(this._icon) || new L.Point(0, 0);
+      var transform = "translate3d(" + pos.x + "px," + pos.y + "px,0)";
+      if (rotation) {
+        transform += " rotate(" + rotation + "deg)";
+      }
+      if (this.options.scale) {
+        transform += " scale(" + this.options.scale + ")";
+      }
+      this._icon.style[L.DomUtil.TRANSFORM] = transform;
+    }
+  };
+
+  // Rotation session ended: drop the cache and do a full update (which now
+  // also flushes the deferred z-index, since _rotating is cleared first).
+  L.Marker.prototype._rotateEnd = function () {
+    this._rotLayerPt = null;
+    this.update();
+  };
+
+  // B: Defer z-index writes while a rotation session is active. Skipping the
+  // per-frame style.zIndex write avoids stacking-context recalcs ×N markers.
+  var _markerResetZIndex = L.Marker.prototype._resetZIndex;
+  L.Marker.prototype._resetZIndex = function () {
+    if (this._map && this._map._rotating) return;
+    return _markerResetZIndex.call(this);
   };
 
   // =====================================================================
@@ -612,10 +659,12 @@ const _mapProto = L.Map.prototype;
     _SCALE_THRESHOLD: 0.04,
     _SCALE_THRESHOLD_ROT: 0.12,
     _MOVE_THRESHOLD: 4,
+    _ZOOM_EPS: 0.01,              // skip reproject if zoom unchanged this frame
+    _PAN_EPS: 1,                  // skip reproject if midpoint barely moved (px)
 
     // --- Rotation inertia (momentum spin after release) ---
     _ROT_INERTIA: true,           // master switch for the test
-    _ROT_DECAY: 0.0038,           // higher = stops faster (per ms)
+    _ROT_DECAY: 0.0018,           // higher = stops faster (per ms)
     _ROT_MIN_VELOCITY: 0.004,     // deg/ms below which inertia stops
     _ROT_MAX_VELOCITY: 1.2,       // clamp deg/ms to avoid wild spins
     _ROT_VELOCITY_SMOOTH: 0.4,    // EMA weight for new velocity samples
@@ -659,6 +708,10 @@ const _mapProto = L.Map.prototype;
     },
 
     _onTouchStart: function (e) {
+      // Any new touch (even a single-finger pan) must abort rotation inertia
+      // first, or its setBearing loop races the drag: tiles jump and the
+      // marker layer-point cache goes stale (markers lag, then snap back).
+      this._stopRotateInertia();
       if (!e.touches || e.touches.length !== 2) {
         this._active = false;
         return;
@@ -672,7 +725,6 @@ const _mapProto = L.Map.prototype;
         map.dragging.disable();
       }
       if (map._stop) map._stop();
-      this._stopRotateInertia();
       this._rotVelocity = 0;
       this._lastRotTime = 0;
       this._lastRotBearing = 0;
@@ -713,6 +765,8 @@ const _mapProto = L.Map.prototype;
       this._rotationActive = false;
       this._scaleActive = false;
       this.zoom = false;
+      this._lastMoveZoom = this._startZoom;
+      this._lastMoveMidpoint = this._startMidpoint;
 
       L.DomEvent.preventDefault(e);
     },
@@ -783,6 +837,7 @@ const _mapProto = L.Map.prototype;
           if (Math.abs(angleDelta) > this._ROTATION_THRESHOLD) {
             this._rotationActive = true;
             this._rotRefAngle = angle;
+            map._rotating = true;
             map.stopHeadingUp();
             map.fire("rotatestart");
           }
@@ -819,7 +874,15 @@ const _mapProto = L.Map.prototype;
         }
       }
 
-      if (this._scaleActive) {
+      // Gate the costly reproject: only when zoom or midpoint actually changed
+      // this frame. During pure rotation neither does → rotation stays as cheap
+      // as the mouse (just setBearing), no per-frame _move of all tiles/layers.
+      var zoomChanged =
+        Math.abs(newZoom - this._lastMoveZoom) > this._ZOOM_EPS;
+      var panChanged =
+        midpoint.distanceTo(this._lastMoveMidpoint) > this._PAN_EPS;
+
+      if (this._scaleActive && (zoomChanged || panChanged)) {
         // --- Anchor: keep geographic point under midpoint ---
         var viewHalf = map.getSize().divideBy(2);
         var screenOffset = midpoint.subtract(viewHalf);
@@ -832,6 +895,8 @@ const _mapProto = L.Map.prototype;
         this._center = newCenter;
         this._zoom = newZoom;
         this.zoom = true;
+        this._lastMoveZoom = newZoom;
+        this._lastMoveMidpoint = midpoint;
 
         if (this._animRequest) {
           L.Util.cancelAnimFrame(this._animRequest);
@@ -845,7 +910,7 @@ const _mapProto = L.Map.prototype;
           undefined,
         );
         this._animRequest = L.Util.requestAnimFrame(moveFn, this, true);
-      } else {
+      } else if (this._scaleActive) ; else {
         this._center = this._startCenter;
         this._zoom = this._startZoom;
         this.zoom = false;
@@ -884,7 +949,10 @@ const _mapProto = L.Map.prototype;
         }
       }
       if (this._rotationActive) {
-        if (!this._startRotateInertia()) map.fire("rotate");
+        if (!this._startRotateInertia()) {
+          map._rotating = false;
+          map.fire("rotateend");
+        }
       }
       this.zoom = false;
     },
@@ -893,6 +961,12 @@ const _mapProto = L.Map.prototype;
       if (this._rotInertiaReq) {
         L.Util.cancelAnimFrame(this._rotInertiaReq);
         this._rotInertiaReq = null;
+      }
+      var map = this._map;
+      if (map && map._rotating) {
+        map._rotating = false;
+        map._rotInertia = false;
+        map.fire("rotateend");
       }
     },
 
@@ -923,6 +997,7 @@ const _mapProto = L.Map.prototype;
       var last = now;
       var self = this;
 
+      map._rotInertia = true;
       map.fire("rotatestart");
       var step = function () {
         var t =
@@ -936,13 +1011,14 @@ const _mapProto = L.Map.prototype;
         v *= Math.exp(-decay * dt);
         if (Math.abs(v) < minV) {
           self._rotInertiaReq = null;
-          map.fire("rotate");
+          map._rotating = false;
+          map._rotInertia = false;
+          map.fire("rotateend");
           return;
         }
         var b = map.getBearing() + v * dt;
         b = ((b % 360) + 360) % 360;
         map.setBearing(b);
-        map.fire("rotate");
         self._rotInertiaReq = L.Util.requestAnimFrame(step, self);
       };
       this._rotInertiaReq = L.Util.requestAnimFrame(step, this);

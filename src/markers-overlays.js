@@ -13,7 +13,8 @@ import L from "leaflet";
   L.Marker.prototype.getEvents = function () {
     var events = _markerGetEvents.call(this);
     if (this._map && this._map._rotate) {
-      events.rotate = this.update;
+      events.rotate = this._rotateReposition;
+      events.rotateend = this._rotateEnd;
     }
     return events;
   };
@@ -56,6 +57,52 @@ import L from "leaflet";
       }
     }
     return result;
+  };
+
+  // C: Fast per-frame reposition during rotation. center/zoom are constant
+  // while rotating, so the layer point is cached and only the bearing is
+  // re-applied — skips latLngToLayerPoint projection per marker per frame.
+  L.Marker.prototype._rotateReposition = function () {
+    var map = this._map;
+    if (!map || !this._icon) return;
+    var lp;
+    if (map._rotInertia && this._rotLayerPt) {
+      lp = this._rotLayerPt;
+    } else {
+      lp = map.latLngToLayerPoint(this._latlng);
+      if (map._rotInertia) this._rotLayerPt = lp;
+    }
+    this._setPos(lp);
+    var rotation = this.options.rotation || 0;
+    if (this.options.rotateWithView) {
+      rotation += map._bearing;
+    }
+    if (rotation || this.options.scale) {
+      var pos = L.DomUtil.getPosition(this._icon) || new L.Point(0, 0);
+      var transform = "translate3d(" + pos.x + "px," + pos.y + "px,0)";
+      if (rotation) {
+        transform += " rotate(" + rotation + "deg)";
+      }
+      if (this.options.scale) {
+        transform += " scale(" + this.options.scale + ")";
+      }
+      this._icon.style[L.DomUtil.TRANSFORM] = transform;
+    }
+  };
+
+  // Rotation session ended: drop the cache and do a full update (which now
+  // also flushes the deferred z-index, since _rotating is cleared first).
+  L.Marker.prototype._rotateEnd = function () {
+    this._rotLayerPt = null;
+    this.update();
+  };
+
+  // B: Defer z-index writes while a rotation session is active. Skipping the
+  // per-frame style.zIndex write avoids stacking-context recalcs ×N markers.
+  var _markerResetZIndex = L.Marker.prototype._resetZIndex;
+  L.Marker.prototype._resetZIndex = function () {
+    if (this._map && this._map._rotating) return;
+    return _markerResetZIndex.call(this);
   };
 
   // =====================================================================

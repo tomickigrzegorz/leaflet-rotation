@@ -21,7 +21,7 @@ function randIn(min, max) {
 
 // --- 100 markerów ---
 (function () {
-  const n = 10;
+  const n = 20;
   const group = L.layerGroup().addTo(map);
   for (let i = 0; i < n; i++) {
     const lat = randIn(TEST_BOUNDS.latMin, TEST_BOUNDS.latMax);
@@ -315,7 +315,10 @@ L.marker([52.230674715695576, 20.948453606605533])
       {
         type: "Feature",
         properties: { name: "GeoJSON punkt" },
-        geometry: { type: "Point", coordinates: [20.927453606605533, 52.239674715695576] },
+        geometry: {
+          type: "Point",
+          coordinates: [20.927453606605533, 52.239674715695576],
+        },
       },
       {
         type: "Feature",
@@ -348,7 +351,12 @@ L.marker([52.230674715695576, 20.948453606605533])
     ],
   };
   L.geoJSON(gj, {
-    style: { color: "#d62828", weight: 2, fillColor: "#f77f00", fillOpacity: 0.3 },
+    style: {
+      color: "#d62828",
+      weight: 2,
+      fillColor: "#f77f00",
+      fillOpacity: 0.3,
+    },
     onEachFeature: function (f, layer) {
       if (f.properties && f.properties.name) layer.bindPopup(f.properties.name);
     },

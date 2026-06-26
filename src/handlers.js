@@ -13,10 +13,12 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
     _SCALE_THRESHOLD: 0.04,
     _SCALE_THRESHOLD_ROT: 0.12,
     _MOVE_THRESHOLD: 4,
+    _ZOOM_EPS: 0.01,              // skip reproject if zoom unchanged this frame
+    _PAN_EPS: 1,                  // skip reproject if midpoint barely moved (px)
 
     // --- Rotation inertia (momentum spin after release) ---
     _ROT_INERTIA: true,           // master switch for the test
-    _ROT_DECAY: 0.0038,           // higher = stops faster (per ms)
+    _ROT_DECAY: 0.0018,           // higher = stops faster (per ms)
     _ROT_MIN_VELOCITY: 0.004,     // deg/ms below which inertia stops
     _ROT_MAX_VELOCITY: 1.2,       // clamp deg/ms to avoid wild spins
     _ROT_VELOCITY_SMOOTH: 0.4,    // EMA weight for new velocity samples
@@ -60,6 +62,10 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
     },
 
     _onTouchStart: function (e) {
+      // Any new touch (even a single-finger pan) must abort rotation inertia
+      // first, or its setBearing loop races the drag: tiles jump and the
+      // marker layer-point cache goes stale (markers lag, then snap back).
+      this._stopRotateInertia();
       if (!e.touches || e.touches.length !== 2) {
         this._active = false;
         return;
@@ -73,7 +79,6 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
         map.dragging.disable();
       }
       if (map._stop) map._stop();
-      this._stopRotateInertia();
       this._rotVelocity = 0;
       this._lastRotTime = 0;
       this._lastRotBearing = 0;
@@ -114,6 +119,8 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
       this._rotationActive = false;
       this._scaleActive = false;
       this.zoom = false;
+      this._lastMoveZoom = this._startZoom;
+      this._lastMoveMidpoint = this._startMidpoint;
 
       L.DomEvent.preventDefault(e);
     },
@@ -184,6 +191,7 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
           if (Math.abs(angleDelta) > this._ROTATION_THRESHOLD) {
             this._rotationActive = true;
             this._rotRefAngle = angle;
+            map._rotating = true;
             map.stopHeadingUp();
             map.fire("rotatestart");
           }
@@ -220,7 +228,15 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
         }
       }
 
-      if (this._scaleActive) {
+      // Gate the costly reproject: only when zoom or midpoint actually changed
+      // this frame. During pure rotation neither does → rotation stays as cheap
+      // as the mouse (just setBearing), no per-frame _move of all tiles/layers.
+      var zoomChanged =
+        Math.abs(newZoom - this._lastMoveZoom) > this._ZOOM_EPS;
+      var panChanged =
+        midpoint.distanceTo(this._lastMoveMidpoint) > this._PAN_EPS;
+
+      if (this._scaleActive && (zoomChanged || panChanged)) {
         // --- Anchor: keep geographic point under midpoint ---
         var viewHalf = map.getSize().divideBy(2);
         var screenOffset = midpoint.subtract(viewHalf);
@@ -233,6 +249,8 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
         this._center = newCenter;
         this._zoom = newZoom;
         this.zoom = true;
+        this._lastMoveZoom = newZoom;
+        this._lastMoveMidpoint = midpoint;
 
         if (this._animRequest) {
           L.Util.cancelAnimFrame(this._animRequest);
@@ -246,6 +264,9 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
           undefined,
         );
         this._animRequest = L.Util.requestAnimFrame(moveFn, this, true);
+      } else if (this._scaleActive) {
+        // Zoom latched but idle this frame: keep last applied center/zoom,
+        // let rotation alone drive the frame (cheap, mouse-like).
       } else {
         this._center = this._startCenter;
         this._zoom = this._startZoom;
@@ -285,7 +306,10 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
         }
       }
       if (this._rotationActive) {
-        if (!this._startRotateInertia()) map.fire("rotate");
+        if (!this._startRotateInertia()) {
+          map._rotating = false;
+          map.fire("rotateend");
+        }
       }
       this.zoom = false;
     },
@@ -294,6 +318,12 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
       if (this._rotInertiaReq) {
         L.Util.cancelAnimFrame(this._rotInertiaReq);
         this._rotInertiaReq = null;
+      }
+      var map = this._map;
+      if (map && map._rotating) {
+        map._rotating = false;
+        map._rotInertia = false;
+        map.fire("rotateend");
       }
     },
 
@@ -324,6 +354,7 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
       var last = now;
       var self = this;
 
+      map._rotInertia = true;
       map.fire("rotatestart");
       var step = function () {
         var t =
@@ -337,13 +368,14 @@ import { DEG_TO_RAD, RAD_TO_DEG } from "./constants.js";
         v *= Math.exp(-decay * dt);
         if (Math.abs(v) < minV) {
           self._rotInertiaReq = null;
-          map.fire("rotate");
+          map._rotating = false;
+          map._rotInertia = false;
+          map.fire("rotateend");
           return;
         }
         var b = map.getBearing() + v * dt;
         b = ((b % 360) + 360) % 360;
         map.setBearing(b);
-        map.fire("rotate");
         self._rotInertiaReq = L.Util.requestAnimFrame(step, self);
       };
       this._rotInertiaReq = L.Util.requestAnimFrame(step, this);
