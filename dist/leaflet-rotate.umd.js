@@ -665,7 +665,7 @@
       _MOVE_THRESHOLD: 4,
       _ZOOM_EPS: 0.01,              // skip reproject if zoom unchanged this frame
       _PAN_EPS: 2,                  // skip reproject if midpoint barely moved (px)
-      _ZOOM_SNAP_STEP: 0.1,         // quantize live zoom → fewer reprojects
+      _ZOOM_SNAP_STEP: 0,           // quantize live zoom → fewer reprojects (0 = off; >0 makes zoom step visibly)
 
       // --- Rotation inertia (momentum spin after release) ---
       _ROT_INERTIA: true,           // master switch for the test
