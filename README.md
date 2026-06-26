@@ -4,11 +4,19 @@ Leaflet map rotation: bearing, heading-up, touch/drag/keyboard rotate, and a com
 
 ## Install
 
-### Bundler (ESM, via git)
+### npm
+
+```bash
+npm i @tomickigrzegorz/leaflet-rotate leaflet
+```
+
+Or install the latest from git:
 
 ```bash
 npm i github:tomickigrzegorz/leaflet-rotation
 ```
+
+### Bundler (ESM)
 
 ```js
 import "leaflet";

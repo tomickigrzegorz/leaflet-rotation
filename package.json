@@ -2,8 +2,10 @@
   "name": "@tomickigrzegorz/leaflet-rotate",
   "version": "0.1.0",
   "description": "Leaflet map rotation engine: bearing, heading-up, touch/drag/keyboard rotate, compass control.",
-  "private": true,
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "dist/leaflet-rotate.umd.js",
   "module": "dist/leaflet-rotate.esm.js",
   "unpkg": "dist/leaflet-rotate.umd.min.js",
