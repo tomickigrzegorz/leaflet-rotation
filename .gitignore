@@ -1,6 +1,5 @@
 .claude
 docs
-CLAUDE.md
 node_modules
 .playwright-mcp
 *-smoke.png
