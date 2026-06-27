@@ -1,4 +1,4 @@
-/*! @tomickigrzegorz/leaflet-rotate v0.2.1 | MIT */
+/*! @tomickigrzegorz/leaflet-rotate v0.2.2 | MIT */
 import L from 'leaflet';
 
 // =====================================================================
@@ -315,6 +315,19 @@ const RAD_TO_DEG = 180 / Math.PI;
 
   L.GridLayer.prototype._onRotate = function () {
     this._update();
+  };
+
+  // _commitRotatePan() calls map._resetView() to zero a pan offset (needed so
+  // the rotation pivot stays centered). _resetView always fires `viewprereset`,
+  // whose default GridLayer handler is _invalidateAll — it removes every tile
+  // and re-fades them in, which flickers on every GPS step while walking +
+  // heading-up. A pan commit never changes zoom or the visible view, so the
+  // tiles stay valid; _setView only needs to reposition them. Skip the full
+  // invalidate during a commit to avoid the flicker.
+  var _gridInvalidateAll = L.GridLayer.prototype._invalidateAll;
+  L.GridLayer.prototype._invalidateAll = function () {
+    if (this._map && this._map._committingRotatePan) return;
+    return _gridInvalidateAll.call(this);
   };
 
   var _getTiledPixelBounds = L.GridLayer.prototype._getTiledPixelBounds;
